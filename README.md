@@ -1,1 +1,365 @@
-# Supervisor-Based-Multi-AI-System
+# 🤖 Supervisor-Based Multi-Agent AI System
+
+A multi-agent AI workflow built using **LangGraph** and **LangChain**, where a supervisor coordinates three specialized agents to transform a user task into a structured final report.
+
+The system follows a sequential workflow:
+
+```text
+User Task
+    ↓
+┌──────────────┐
+│  Supervisor  │
+└──────┬───────┘
+       ↓
+┌──────────────┐
+│  Researcher  │
+└──────┬───────┘
+       ↓
+┌──────────────┐
+│   Analyst    │
+└──────┬───────┘
+       ↓
+┌──────────────┐
+│    Writer    │
+└──────┬───────┘
+       ↓
+  Final Report
+```
+
+## ✨ Features
+
+* **Supervisor Agent** – decides which agent should run next based on the current state.
+* **Research Agent** – gathers background information, trends, statistics, and examples.
+* **Analyst Agent** – analyzes the research and produces insights, risks, opportunities, and recommendations.
+* **Writer Agent** – converts the research and analysis into a professional executive report.
+* **Stateful Workflow** – uses LangGraph's `StateGraph` and a custom `AgentState`.
+* **Conditional Routing** – agents return control to the supervisor, which determines the next step.
+* **Groq LLM** – uses `qwen/qwen3.6-27b` through `ChatGroq`.
+
+## 🧠 How It Works
+
+### 1. User submits a task
+
+The workflow starts with a human message, for example:
+
+```text
+What are the benefits and risks of AI in healthcare?
+```
+
+The task is stored in the graph state.
+
+### 2. Supervisor Agent
+
+The supervisor checks whether research, analysis, and the final report already exist.
+
+Its routing logic is:
+
+```text
+No research
+    → Researcher
+
+Research exists, no analysis
+    → Analyst
+
+Analysis exists, no report
+    → Writer
+
+Report exists
+    → END
+```
+
+This logic is implemented through the `next_state` field in `AgentState`.
+
+### 3. Researcher Agent
+
+The Researcher receives the task and generates research containing:
+
+* Key facts and background
+* Current trends or developments
+* Important statistics or data points
+* Notable examples or case studies
+
+The generated research is stored in:
+
+```python
+research_res
+```
+
+The Researcher then sends control back to the supervisor.
+
+### 4. Analyst Agent
+
+The Analyst receives both the original task and the research.
+
+It looks for:
+
+* Key insights and patterns
+* Strategic implications
+* Risks and opportunities
+* Actionable recommendations
+
+The result is stored in:
+
+```python
+analysis_res
+```
+
+Control is then returned to the supervisor.
+
+### 5. Writer Agent
+
+The Writer receives:
+
+* The original task
+* Research findings
+* Analysis
+
+It produces an executive report containing:
+
+1. Executive Summary
+2. Key Findings
+3. Analysis & Insights
+4. Recommendations
+5. Conclusion
+
+The final report is stored in:
+
+```python
+final_res
+```
+
+Once the report is generated, `task_status` becomes `True`, causing the graph to terminate.
+
+## 🏗️ Architecture
+
+The project uses a custom state extending LangGraph's `MessagesState`:
+
+```python
+class AgentState(MessagesState):
+    next_state: str = ""
+    current_task: str = ""
+    research_res: str = ""
+    analysis_res: str = ""
+    final_res: str = ""
+    task_status: bool = False
+```
+
+The main graph contains four nodes:
+
+```text
+supervisor
+research
+analyst
+writer
+```
+
+The supervisor is also the entry point of the workflow.
+
+Conditional edges determine which node executes next.
+
+## 🛠️ Tech Stack
+
+* **Python**
+* **LangGraph** – workflow orchestration and state management
+* **LangChain**
+* **Groq** – LLM provider
+* **Qwen 3.6 27B** – language model
+* **python-dotenv** – environment variable management
+
+## 📁 Project Structure
+
+```text
+.
+├── SuperviseMultiAIAg(8).ipynb
+├── .env
+└── README.md
+```
+
+## ⚙️ Installation
+
+Clone the repository:
+
+```bash
+git clone <your-repository-url>
+cd <your-repository-folder>
+```
+
+Install the required packages:
+
+```bash
+pip install langchain-core
+pip install langchain-groq
+pip install langgraph
+pip install langchain-community
+pip install tavily-python
+pip install python-dotenv
+```
+
+Or install everything together:
+
+```bash
+pip install langchain-core langchain-groq langgraph langchain-community tavily-python python-dotenv
+```
+
+## 🔑 Environment Variables
+
+Create a `.env` file in the project directory:
+
+```env
+GROQ_API_KEY=your_groq_api_key
+```
+
+The notebook loads the environment variables using:
+
+```python
+from dotenv import load_dotenv
+
+load_dotenv()
+```
+
+## 🚀 Running the Project
+
+Open the notebook:
+
+```bash
+jupyter notebook
+```
+
+Run the notebook cells in order.
+
+The example invocation is:
+
+```python
+response = graph.invoke({
+    "messages": [
+        HumanMessage(
+            content="What are the benefits and risks of AI in healthcare?"
+        )
+    ]
+})
+
+print(response["final_res"])
+```
+
+The resulting `final_res` contains the report generated by the Writer agent.
+
+## 🔄 Workflow Example
+
+For the task:
+
+```text
+What are the benefits and risks of AI in healthcare?
+```
+
+the workflow behaves approximately like this:
+
+```text
+User
+ │
+ ▼
+Supervisor
+ │
+ ├── No research
+ ▼
+Researcher
+ │
+ │  Generates research
+ ▼
+Supervisor
+ │
+ ├── Research exists
+ ├── No analysis
+ ▼
+Analyst
+ │
+ │  Analyzes research
+ ▼
+Supervisor
+ │
+ ├── Analysis exists
+ ├── No report
+ ▼
+Writer
+ │
+ │  Creates final report
+ ▼
+Supervisor
+ │
+ ├── Report exists
+ ▼
+ END
+```
+
+## 📌 Key Learning Concepts
+
+This project demonstrates several important concepts for building agentic AI applications:
+
+### State Management
+
+Information is passed between agents through a shared state rather than isolated function calls.
+
+### Agent Specialization
+
+Each agent has a specific responsibility:
+
+```text
+Researcher → Information
+Analyst    → Reasoning
+Writer     → Communication
+```
+
+### Workflow Orchestration
+
+LangGraph controls the execution order and determines which agent should run next.
+
+### Conditional Routing
+
+The `router()` function reads:
+
+```python
+state["next_state"]
+```
+
+and routes execution to the appropriate node.
+
+### Human-Readable Agent Updates
+
+Each agent adds an `AIMessage` describing what it has completed, making the workflow easier to understand when inspecting messages.
+
+## ⚠️ Current Limitations
+
+This implementation is intentionally simple and focuses on demonstrating supervisor-based orchestration.
+
+The notebook imports tools such as **Tavily Search**, `create_react_agent`, and `MemorySaver`, but they are not currently integrated into the executed workflow.
+
+The `create_supervisor_chain()` function is also defined, but the actual workflow uses the rule-based `supervisor_agent()` function instead.
+
+Additionally, the Writer receives truncated research and analysis (`[:1000]`) rather than the complete outputs.
+
+## 🔮 Possible Improvements
+
+Future versions could include:
+
+* Real web research using Tavily
+* ReAct-based agents with tool calling
+* Persistent memory with a checkpoint database
+* Parallel research agents
+* Human approval before report generation
+* More sophisticated supervisor decisions using an LLM
+* Source citations in the research output
+* Structured JSON/Pydantic outputs
+* Streaming agent responses
+* A web UI using React or Streamlit
+* Error handling and retry mechanisms
+
+## 🎯 Purpose
+
+The main purpose of this project is to demonstrate how **multiple specialized AI agents can be orchestrated through a supervisor using LangGraph**, with each agent contributing a different stage of the overall task.
+
+---
+
+## 👨‍💻 Author
+
+**Pranshu Awasthy**
+
+Built as a learning project while exploring **LangGraph, LangChain, and Multi-Agent AI Systems**.
